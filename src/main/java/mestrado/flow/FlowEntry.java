@@ -40,10 +40,8 @@ public class FlowEntry {
 	public void genFlowID() {
 		String key = flowMatch.getSourceIP();
 		key += flowMatch.getDestinationIP();
-		key += (flowMatch.getTransportSourcePortNumber() * 10);
-		key += flowMatch.getTransportDestinationPortNumber();
 		key += flowMatch.getTransportSourcePortNumber();
-		key += flowMatch.getTransportDestinationPortNumber();	
+		key += flowMatch.getTransportDestinationPortNumber();
 		int i;
 		int id = 0;
 		for(i = 0; i<key.length(); i++){

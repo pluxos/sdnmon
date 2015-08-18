@@ -21,9 +21,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import mestrado.monitoring.poll.IPollingService;
+import mestrado.monitoring.poll.MatchMon;
 import net.floodlightcontroller.core.FloodlightContext;
 import net.floodlightcontroller.core.IFloodlightProviderService;
 import net.floodlightcontroller.core.IOFSwitch;
@@ -399,15 +402,18 @@ public class Forwarding extends ForwardingBase implements IFloodlightModule {
 
 	@Override
 	public Collection<Class<? extends IFloodlightService>> getModuleServices() {
-		// We don't export any services
-		return null;
+		Collection<Class<? extends IFloodlightService>> l = new ArrayList<Class<? extends IFloodlightService>>();
+		l.add(IForwardingAuxService.class);
+		return l;
 	}
 
 	@Override
 	public Map<Class<? extends IFloodlightService>, IFloodlightService>
 	getServiceImpls() {
-		// We don't have any services
-		return null;
+		Map<Class<? extends IFloodlightService>, 
+		IFloodlightService> m = new HashMap<Class<? extends IFloodlightService>, IFloodlightService>();
+		m.put(IForwardingAuxService.class, this);
+		return m;
 	}
 
 	@Override
@@ -501,4 +507,12 @@ public class Forwarding extends ForwardingBase implements IFloodlightModule {
 	public void startUp(FloodlightModuleContext context) {
 		super.startUp();
 	}
+
+	//
+	@Override
+	public List<MatchMon> getMatchMonList() {
+		// TODO Auto-generated method stub
+		return matchMonList;
+	}
+
 }

@@ -12,6 +12,7 @@ import mestrado.flow.FlowEntry;
 import mestrado.flow.FlowInstructions;
 import mestrado.flow.FlowMatch;
 import mestrado.flow.FlowStatistics;
+import mestrado.monitoring.poll.ThreadMon;
 
 public class RetrieveRow {
 	
@@ -107,6 +108,48 @@ public class RetrieveRow {
 			e.printStackTrace();
 		}
 		return fs; 
+	}
+	
+	public boolean existThread(Statement stmt, String name) {
+		// TODO Auto-generated method stub
+		ResultSet rs;
+		String sql = "SELECT exists(SELECT 1 FROM outro.threads WHERE name= '"+name+"')";
+		try {
+			rs = stmt.executeQuery(sql);
+			while(rs.next()){
+				if(rs.getBoolean(1) == true){
+					return true;
+				}
+				return false;
+			}
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return false;
+	}
+
+	
+	public List<ThreadMon> getThreads(Statement stmt) {
+		// TODO Auto-generated method stub
+		List<ThreadMon> list = new ArrayList<ThreadMon>();
+		ResultSet rs;
+		String sql = "SELECT * FROM outro.threads";
+		try {
+			rs = stmt.executeQuery(sql);
+			while(rs.next()){
+				list.add(new ThreadMon(rs.getString(1),//Name
+				rs.getString(2),//Switch ID
+				rs.getInt(3),//Port Number
+				rs.getString(4),//Source IP
+				rs.getString(5),//Destination IP
+				rs.getString(6)));//Status
+			}
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return list;
 	}
 
 	

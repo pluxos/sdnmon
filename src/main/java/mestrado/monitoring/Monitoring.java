@@ -20,6 +20,7 @@ import net.floodlightcontroller.core.module.FloodlightModuleContext;
 import net.floodlightcontroller.core.module.FloodlightModuleException;
 import net.floodlightcontroller.core.module.IFloodlightModule;
 import net.floodlightcontroller.core.module.IFloodlightService;
+import net.floodlightcontroller.forwarding.IForwardingAuxService;
 import net.floodlightcontroller.packet.Ethernet;
 import net.floodlightcontroller.restserver.IRestApiService;
 
@@ -29,6 +30,7 @@ public class Monitoring implements IFloodlightModule, IOFMessageListener, IPolli
 	protected IRestApiService restApiService;
 	protected IFloodlightProviderService floodlightProviderService;
 	protected IOFSwitchService switchService;
+	protected IForwardingAuxService auxFService; 
 	protected RetrieveRow rr = new RetrieveRow();
 	@Override
 	public String getName() {
@@ -54,7 +56,7 @@ public class Monitoring implements IFloodlightModule, IOFMessageListener, IPolli
 		// TODO Auto-generated method stub
 		Ethernet eth = IFloodlightProviderService.bcStore.get(cntx,
 				IFloodlightProviderService.CONTEXT_PI_PAYLOAD); //Pegar o Pacote enviado pelo Switch.
-		polling.main(switchService.getAllSwitchMap(), eth);
+		polling.main(switchService.getAllSwitchMap(), eth, auxFService);
 		return Command.CONTINUE;
 	}
 
@@ -83,6 +85,7 @@ public class Monitoring implements IFloodlightModule, IOFMessageListener, IPolli
 		l.add(IFloodlightProviderService.class);
 		l.add(IRestApiService.class);
 		l.add(IOFSwitchService.class);
+		l.add(IForwardingAuxService.class);
 		return null;
 	}
 
@@ -94,6 +97,7 @@ public class Monitoring implements IFloodlightModule, IOFMessageListener, IPolli
 		restApiService = context.getServiceImpl(IRestApiService.class);
 		floodlightProviderService = context.getServiceImpl(IFloodlightProviderService.class);
 		switchService = context.getServiceImpl(IOFSwitchService.class);
+		auxFService = context.getServiceImpl(IForwardingAuxService.class);
 	}
 
 	@Override

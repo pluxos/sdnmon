@@ -90,6 +90,8 @@ public class Scope {
 		
 	}
 	
+	//######################GETTERS#################################
+	
 	public String getThreadName(){
 		return threadName;
 	}
@@ -101,6 +103,24 @@ public class Scope {
 	public List<String> getNoNWildcardedFields() {
 		return nonWildcardedFields;
 	}
+	
+	public String getSwitchID() {
+		return switchID;
+	}
+
+	public String getSourceIP() {
+		return sourceIP;
+	}
+
+	public String getDestinationIP() {
+		return destinationIP;
+	}
+
+	public Integer getOutputPort() {
+		return outputPort;
+	}
+	
+	//#############################################################
 	
 	public static class ScopeBuilder {
 		
@@ -134,6 +154,7 @@ public class Scope {
 		 */
 		
 		public Scope build(IOFSwitch sw){
+			this.switchID = sw.getId().toString();
 			this.threadName = sw.getId().toString() + "," + threadName ;
 			this.threadName = threadName.substring(0, threadName.length() - 1); // Remove the last comma.
 			return new Scope(this, sw);

@@ -2,6 +2,7 @@ package mestrado.monitoring.database;
 
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Calendar;
 import java.util.List;
 
 import org.projectfloodlight.openflow.protocol.OFBucket;
@@ -14,6 +15,8 @@ import mestrado.flow.FlowEntry;
 import mestrado.flow.FlowInstructions;
 import mestrado.flow.FlowMatch;
 import mestrado.flow.FlowStatistics;
+import mestrado.monitoring.poll.Scope;
+import mestrado.monitoring.poll.Scope.ScopeBuilder;
 
 public class InsertRow {
 	
@@ -39,7 +42,6 @@ public class InsertRow {
 	public void insertDB(String table, Statement stmt, Object... args){
 		int i = 0;
 		String values = "";
-		System.out.println("ARGS:"+args.length);
 		while(i < args.length){
 			values += "'"+args[i]+"'";
 			if(i < (args.length - 1))
@@ -84,6 +86,25 @@ public class InsertRow {
 			//Ignorar a verificação do inserção de buckets novamente.
 		}
 		
+	}
+
+	public void insertThreadData(Statement stmt, Scope scope) {
+		// TODO Auto-generated method stub
+		//Fazer uma outra forma quando houver uma combinação das portas e ips, por exemplo.
+		//O "-1" diz que não tem nada presente.
+		List<String> fields = scope.getNoNWildcardedFields();
+		if(fields.size() == 0){
+			insertDB("outro.threads", stmt, scope.getThreadName(), scope.getSwitchID(), -1, "-1", "-1", "active");
+		}
+		
+		else if(fields.contains("outputPort")){
+			insertDB("outro.threads", stmt, scope.getThreadName(), scope.getSwitchID(), scope.getOutputPort(), "-1", "-1", "active");
+		}
+		
+		else if(fields.contains("sourceIP") && fields.contains("destinationIP")){
+			insertDB("outro.threads", stmt, scope.getThreadName(), scope.getSwitchID(), -1, scope.getSourceIP(), 
+					scope.getDestinationIP(), "active");
+		}
 	}
 
 }

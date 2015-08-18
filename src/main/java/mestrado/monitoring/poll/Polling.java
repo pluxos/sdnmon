@@ -2,6 +2,7 @@ package mestrado.monitoring.poll;
 
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -21,7 +22,9 @@ import mestrado.monitoring.database.DeleteRow;
 import mestrado.monitoring.database.UpdateRow;
 import mestrado.monitoring.database.InsertRow;
 import mestrado.monitoring.database.RetrieveRow;
+import mestrado.monitoring.poll.Scheduler.ThreadsAux;
 import net.floodlightcontroller.core.IOFSwitch;
+import net.floodlightcontroller.forwarding.IForwardingAuxService;
 import net.floodlightcontroller.packet.Ethernet;
 
 import org.projectfloodlight.openflow.protocol.OFFlowStatsEntry;
@@ -32,6 +35,7 @@ import org.projectfloodlight.openflow.types.DatapathId;
 
 public class Polling{
 	
+	private Map<DatapathId, ConnectDatabase> dpidConnection = new HashMap<DatapathId, ConnectDatabase>();
 	private Scheduler scheduler = new Scheduler();
 	private FileIO fileIO = new FileIO();
 	private boolean cleanThreadFlag = false;
@@ -40,9 +44,12 @@ public class Polling{
 	private InsertRow insertRow = new InsertRow();
 	private RetrieveRow retrieveRow = new RetrieveRow();
 	private UpdateRow updateRow = new UpdateRow();
-	/***/
+	private DeleteRow deleteRow = new DeleteRow();
+	/**
+	 * @param auxService */
 	
-	public void main(Map<DatapathId, IOFSwitch> map, Ethernet eth){
+	public void main(Map<DatapathId, IOFSwitch> map, Ethernet eth, IForwardingAuxService auxService){
+		scheduler.setForwardingService(auxService);
 		if(verifyPacketReceived(eth) == false){ // Accept only IP Packets!
 			return;
 		}
@@ -78,10 +85,10 @@ public class Polling{
 	
 	public void verifyFlowsThread(IOFSwitch sw) {
 		// TODO Auto-generated method stub
-		 DatapathId dpid = sw.getId(); //Switch's identification
-		 Boolean result = scheduler.createFirstThread(dpid);
+		 Boolean result = scheduler.createFirstThread(sw);
 		 if(result == true){
 			 ConnectDatabase cd = new ConnectDatabase(); // One connection for each switch.
+			 dpidConnection.put(sw.getId(), cd);
 			 createPollingThread(sw, new Scope.ScopeBuilder().build(sw), cd);
 		 }
 	}
@@ -103,6 +110,11 @@ public class Polling{
 				public CleanerThread(ConnectDatabase cd){
 					this.cd = cd;
 					this.dr = new DeleteRow();
+					//Limpar a tabela inicialmente (Evitar problemas caso aconteça algum crash BD).
+					Statement stmt = cd.createStatement();
+					dr.deleteALL(stmt, "outro.match");
+					cd.closeStatement(stmt);
+					//
 				}
 	
 				@Override
@@ -127,12 +139,47 @@ public class Polling{
 				cleanThreadFlag = true;
 		    }
 	}
-
+	
+	
+	//Receber da fila de Threads esperando para ser criada. 
+	boolean threadsAuxFlag = false;
 	/***
 	 * Create Thread and start the Polling process.
 	 * @param dpid
 	 */
-	public void createPollingThread(IOFSwitch sw, Scope scope, ConnectDatabase cd){
+	public void createPollingThread(IOFSwitch sw, Scope scope, ConnectDatabase cd){ //Threads de Leitura.
+		
+		//Criar apenas uma Thread para verificar se não tem alguma Thread para ser criada na fila. Lembrando que a fila só será
+		//preenchida na junção das Threads.
+		class UpdateThread implements Runnable{
+			@Override
+			public void run() {
+				// TODO Auto-generated method stub
+				while(true){
+						scheduler.getRwlock().readLock().lock();
+						criticalZone(scheduler.getQueueOfThreads());
+						scheduler.getRwlock().readLock().unlock();
+					try {
+						Thread.sleep(1000);
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}	
+			}
+
+			private void criticalZone(Set<ThreadsAux> queueOfThreads) {
+				// TODO Auto-generated method stub
+				Set<ThreadsAux> threads = scheduler.getQueueOfThreads();
+				Iterator<ThreadsAux> iterator = threads.iterator();
+				while(iterator.hasNext()){
+						ThreadsAux thread = iterator.next();
+						createPollingThread(thread.getSw(), thread.getScope(), dpidConnection.get(thread.getSw().getId()));
+				}
+				scheduler.getQueueOfThreads().clear();
+			}
+		}
+		
 		class SwitchThread implements Runnable{
 			private Boolean destroyThread = false;
 			private Scope scope;
@@ -148,19 +195,19 @@ public class Polling{
 			public void run() {
 				// TODO Auto-generated method stub
 				while(destroyThread == false){
+					Statement stmt = cd.createStatement();
 					List<OFFlowStatsEntry> statsReply = queryFlowsStatistics(sw, scope);
 					List<FlowEntry> flowStatsList = processFlowsStatistics(statsReply, sw.getId().toString());
 					System.out.println(Thread.currentThread().getName()+":"+flowStatsList);
 					storeFlowData(flowStatsList, cd);
-					List<Scope> newScopeList = scheduler.analyse(flowStatsList, sw, scope.getNoNWildcardedFields());
-					int i;
-					if(newScopeList.size() > 0){ // Means we have new scope(s), destroy this thread and create another.
-						destroyThread = true;
-						for(i=0; i < newScopeList.size(); i++){ //create new threads, one for each scope.
-							createPollingThread(sw, newScopeList.get(i), cd);
-						}
-					}
+					List<Scope> newScopeList = scheduler.analyse(flowStatsList, sw, scope);
+					scheduler.getRwlock().readLock().lock();
+					criticalZone(stmt, newScopeList, flowStatsList);
+					scheduler.getRwlock().readLock().unlock();
+					cd.closeStatement(stmt);
+						
 					fileIO.writeFile(null, null, false);
+					
 					try {
 						Thread.sleep(1000);
 					} catch (InterruptedException e) {
@@ -169,9 +216,55 @@ public class Polling{
 					}
 				}
 			}
+			private void criticalZone(Statement stmt, List<Scope> newScopeList, List<FlowEntry> flowStatsList) {
+				// TODO Auto-generated method stub
+				int i;
+				if(retrieveRow.existThread(stmt, Thread.currentThread().getName()) == false){
+					destroyThread = true;
+					return;
+				}
+				
+				if(newScopeList.size() > 0){ // Means we have new scope(s), destroy this thread and create another.
+					deleteRow.removeThreadBDbyName(stmt, Thread.currentThread().getName());
+					destroyThread = true;
+					for(i=0; i < newScopeList.size(); i++){ //create new threads, one for each scope.
+						createPollingThread(sw, newScopeList.get(i), cd);
+					}
+					return;
+				}
+				
+				if(flowStatsList.size() == 0){ // Não tá passando nada.
+					updateRow.updateThread(stmt, scope, "inactive");
+					return;
+				}
+				
+				else{
+					updateRow.updateThread(stmt, scope, "active");
+					return;
+				}
+			}
 		}
+		
+		//Criar uma Thread auxiliar para acessar a fila de Threads.
+		if(threadsAuxFlag == false){
+			Statement stmt2 = cd.createStatement();
+			DeleteRow dr = new DeleteRow();
+			dr.deleteALL(stmt2, "outro.threads");
+			cd.closeStatement(stmt2);
+			threadsAuxFlag = true;
+			Thread taskAux = new Thread(new UpdateThread());
+			taskAux.start();
+		}
+		//
 		Thread task = new Thread(new SwitchThread(sw, scope, cd), scope.getThreadName());
-		task.start();
+		Statement stmt = cd.createStatement();
+		boolean threadStatus = retrieveRow.existThread(stmt, scope.getThreadName());
+		if(threadStatus == false){ //Verificar se a Thread não existe antes de criar ela.
+			task.start();
+			insertRow.insertThreadData(stmt, scope); //Atualizar a tabela das threads
+		}
+		cd.closeStatement(stmt);
+		//
 	}
 
 	

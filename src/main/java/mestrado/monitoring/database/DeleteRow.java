@@ -26,7 +26,17 @@ public class DeleteRow {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-	}	
+	}
+	
+	public void deleteALL(Statement stmt, String table){
+			String deleteSQL = "DELETE FROM "+table;
+			try {
+				stmt.execute(deleteSQL);
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+	}
 
 	public void removeGroup(Statement stmt, Integer groupID){
 		String sql = "DELETE FROM outro.bucketdesc" +
@@ -38,5 +48,40 @@ public class DeleteRow {
 			e.printStackTrace();
 		}
 	}
+	
+	public void removeThreadsBDbySwitchID(Statement stmt, String dpid){
+		String deleteSQL = "DELETE FROM outro.threads" +
+						" WHERE switch_id = '" + dpid + "'";
+		try {
+			stmt.execute(deleteSQL);
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+	public void removeThreadsBDbySwitchIDandIP(Statement stmt, String dpid, String sourceIP, String destinationIP){
+		String deleteSQL = "DELETE FROM outro.threads" +
+						" WHERE switch_id = '" + dpid + "' AND source_ip= '"+sourceIP+"'" +
+								" AND destination_ip= '"+destinationIP+"'";
+		try {
+			stmt.execute(deleteSQL);
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}	
+	
+	public void removeThreadBDbyName(Statement stmt, String name){
+		String deleteSQL = "DELETE FROM outro.threads" +
+				" WHERE name = '" + name + "'";
+		try {
+			stmt.execute(deleteSQL);
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
 
+	
 }

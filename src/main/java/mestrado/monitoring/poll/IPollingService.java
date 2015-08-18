@@ -11,5 +11,5 @@ public interface IPollingService extends IFloodlightService{
 	public List<Map<String, Object>> queryFlowsList();
 	
 	public Map<String, List<Map<String, Object>>> queryFlowTraffic(Integer flowID);
-	
+
 }

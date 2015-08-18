@@ -5,6 +5,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 import mestrado.flow.FlowStatistics;
+import mestrado.monitoring.poll.Scope;
 
 public class UpdateRow {
 	
@@ -28,6 +29,18 @@ public class UpdateRow {
 			e.printStackTrace();
 		}
 		return false;
+	}
+
+	public void updateThread(Statement stmt, Scope scope, String status) {
+		// TODO Auto-generated method stub
+			String sql;
+			sql = "UPDATE outro.threads SET status='"+status+"'WHERE name='"+scope.getThreadName()+"'";
+			try {
+				stmt.executeUpdate(sql);
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 	}
 
 }

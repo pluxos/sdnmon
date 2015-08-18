@@ -26,6 +26,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import mestrado.monitoring.poll.MatchMon;
 import net.floodlightcontroller.core.FloodlightContext;
 import net.floodlightcontroller.core.IFloodlightProviderService;
 import net.floodlightcontroller.core.IOFMessageListener;
@@ -38,6 +39,7 @@ import net.floodlightcontroller.core.util.AppCookie;
 import net.floodlightcontroller.debugcounter.IDebugCounterService;
 import net.floodlightcontroller.devicemanager.IDeviceService;
 import net.floodlightcontroller.devicemanager.SwitchPort;
+import net.floodlightcontroller.forwarding.IForwardingAuxService;
 import net.floodlightcontroller.packet.IPacket;
 import net.floodlightcontroller.routing.IRoutingService;
 import net.floodlightcontroller.routing.IRoutingDecision;
@@ -61,6 +63,7 @@ import org.projectfloodlight.openflow.protocol.OFVersion;
 import org.projectfloodlight.openflow.protocol.action.OFAction;
 import org.projectfloodlight.openflow.protocol.action.OFActionOutput;
 import org.projectfloodlight.openflow.types.DatapathId;
+import org.projectfloodlight.openflow.types.IPv4Address;
 import org.projectfloodlight.openflow.types.MacAddress;
 import org.projectfloodlight.openflow.types.OFBufferId;
 import org.projectfloodlight.openflow.types.OFPort;
@@ -74,7 +77,9 @@ import org.slf4j.LoggerFactory;
  * decision.
  */
 @LogMessageCategory("Flow Programming")
-public abstract class ForwardingBase implements IOFMessageListener {
+public abstract class ForwardingBase implements IOFMessageListener, IForwardingAuxService {
+	
+	public List<MatchMon> matchMonList = new ArrayList<MatchMon>();//
 
 	protected static Logger log =
 			LoggerFactory.getLogger(ForwardingBase.class);
@@ -294,6 +299,20 @@ public abstract class ForwardingBase implements IOFMessageListener {
 							fmb.getMatch().get(MatchField.IN_PORT),
 							outPort });
 				}
+				//Adicionei###########################################
+				if(match.get(MatchField.ETH_TYPE).getValue() == 0x800){
+					if(match.get(MatchField.IP_PROTO) != null){
+						if(match.get(MatchField.IP_PROTO).getIpProtocolNumber() == 17){
+							populateMonList(sw, match, outPort);
+						}
+						if(match.get(MatchField.IP_PROTO).getIpProtocolNumber() == 6 && 
+								(match.get(MatchField.TCP_DST).getPort() < match.get(MatchField.TCP_SRC).getPort())){
+							populateMonList(sw, match, outPort);
+						}
+					}	
+				}		
+				//######################################################
+				
 				messageDamper.write(sw, fmb.build());
 				if (doFlush) {
 					sw.flush();
@@ -312,6 +331,24 @@ public abstract class ForwardingBase implements IOFMessageListener {
 		}
 
 		return srcSwitchIncluded;
+	}
+
+	private void populateMonList(IOFSwitch sw, Match match, OFPort outPort) {
+		// TODO Auto-generated method stub
+		MatchMon matchMon = new MatchMon(sw.getId().toString(), outPort.getShortPortNumber(), 
+				match.get(MatchField.IPV4_SRC).toString(), match.get(MatchField.IPV4_DST).toString());
+		int k;
+		boolean flag = true;
+		for(k=0; k<matchMonList.size(); k++){
+			MatchMon mm = matchMonList.get(k);
+			if(mm.toString().equals(matchMon.toString())){
+				flag = false;
+			}
+		}
+		
+		if(flag == true){
+			matchMonList.add(matchMon);
+		}
 	}
 
 	/**
