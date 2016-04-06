@@ -269,7 +269,7 @@ public abstract class ForwardingBase implements IOFMessageListener, IForwardingA
 			// set input and output ports on the switch
 			OFPort outPort = switchPortList.get(indx).getPortId();
 			OFPort inPort = switchPortList.get(indx - 1).getPortId();
-			mb.setExact(MatchField.IN_PORT, inPort);
+			//mb.setExact(MatchField.IN_PORT, inPort);
 			aob.setPort(outPort);
 			aob.setMaxLen(Integer.MAX_VALUE);
 			actions.add(aob.build());

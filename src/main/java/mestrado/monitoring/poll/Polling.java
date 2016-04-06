@@ -198,14 +198,16 @@ public class Polling{
 					Statement stmt = cd.createStatement();
 					List<OFFlowStatsEntry> statsReply = queryFlowsStatistics(sw, scope);
 					List<FlowEntry> flowStatsList = processFlowsStatistics(statsReply, sw.getId().toString());
-					System.out.println(Thread.currentThread().getName()+":"+flowStatsList);
-					storeFlowData(flowStatsList, cd);
-					List<Scope> newScopeList = scheduler.analyse(flowStatsList, sw, scope);
-					scheduler.getRwlock().readLock().lock();
-					criticalZone(stmt, newScopeList, flowStatsList);
-					scheduler.getRwlock().readLock().unlock();
-					cd.closeStatement(stmt);
-						
+					//System.out.println(Thread.currentThread().getName()+":"+flowStatsList);
+					//storeFlowData(flowStatsList, cd);
+					List<Scope> newScopeList = scheduler.analyse(flowStatsList, sw, scope.getNoNWildcardedFields());
+					int i;
+					if(newScopeList.size() > 0){ // Means we have new scope(s), destroy this thread and create another.
+						destroyThread = true;
+						for(i=0; i < newScopeList.size(); i++){ //create new threads, one for each scope.
+							createPollingThread(sw, newScopeList.get(i), cd);
+						}
+					}
 					fileIO.writeFile(null, null, false);
 					
 					try {
@@ -293,8 +295,7 @@ public class Polling{
 			Match match = statsEntry.getMatch();
 			flowMatch.setFlowMatch(match);
 			flowInstructions.setFlowInstructions(statsEntry.getInstructions());
-			if(flowMatch.getTransportProtocol() == null /*Não colocar tráfego menor que camada 4.*/ || 
-					(flowMatch.getTransportSourcePortNumber() < flowMatch.getTransportDestinationPortNumber())){ /*Um jeito rápido de eliminar os ACKS.*/ 
+			if(flowMatch.getTransportSourcePortNumber() < flowMatch.getTransportDestinationPortNumber()){ /*Um jeito rápido de eliminar os ACKS.*/ 
 				continue;
 			}
 			flowStatistics.setFlowStatistics(statsEntry);

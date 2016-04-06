@@ -291,16 +291,16 @@ public class Forwarding extends ForwardingBase implements IFloodlightModule {
 		MacAddress dstMac = eth.getDestinationMACAddress();
 
 		Match.Builder mb = sw.getOFFactory().buildMatch();
-		mb.setExact(MatchField.IN_PORT, inPort);
+		//mb.setExact(MatchField.IN_PORT, inPort);
 
 		if (FLOWMOD_DEFAULT_MATCH_MAC) {
-			mb.setExact(MatchField.ETH_SRC, srcMac)
-			.setExact(MatchField.ETH_DST, dstMac);
+			//mb.setExact(MatchField.ETH_SRC, srcMac)
+			//.setExact(MatchField.ETH_DST, dstMac);
 		}
 
 		if (FLOWMOD_DEFAULT_MATCH_VLAN) {
 			if (!vlan.equals(VlanVid.ZERO)) {
-				mb.setExact(MatchField.VLAN_VID, OFVlanVidMatch.ofVlanVid(vlan));
+				//mb.setExact(MatchField.VLAN_VID, OFVlanVidMatch.ofVlanVid(vlan));
 			}
 		}
 
